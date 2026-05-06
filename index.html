@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dairy Farm">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Dairy Farm Management App - Track cows, milk production, feeds, and sales">
+    <title>Dairy Farm Manager</title>
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="icons/icon-384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="72x72" href="icons/icon-72.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="icons/icon-96.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="icons/icon-128.png">
+    <link rel="icon" type="image/png" sizes="144x144" href="icons/icon-144.png">
+    <link rel="icon" type="image/png" sizes="152x152" href="icons/icon-152.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="384x384" href="icons/icon-384.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-icon">🐄</div>
+            <h1>Dairy Farm</h1>
+            <p>Manager</p>
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+    
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="install-prompt" style="display: none;">
+        <div class="install-content">
+            <p>📱 Install this app on your phone for easy access</p>
+            <div class="install-buttons">
+                <button onclick="installApp()" class="btn-install">Install Now</button>
+                <button onclick="dismissInstall()" class="btn-dismiss">Later</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="app-container">
+        <!-- Top Bar -->
+        <header class="app-header">
+            <button class="menu-toggle" onclick="toggleMenu()" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>🐄 Dairy Farm</h1>
+            <button class="sync-indicator" onclick="showSyncStatus()" aria-label="Sync status">
+                <span id="syncIcon">📱</span>
+            </button>
+        </header>
+        
+        <!-- Side Menu (swipeable) -->
+        <nav id="sideMenu" class="side-menu">
+            <div class="menu-header">
+                <h3>Menu</h3>
+                <button onclick="toggleMenu()" class="close-menu">✕</button>
+            </div>
+            <div class="menu-items">
+                <button class="nav-item active" data-section="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </button>
+                <button class="nav-item" data-section="cows">
+                    <span class="nav-icon">🐄</span>
+                    <span class="nav-text">My Cows</span>
+                </button>
+                <button class="nav-item" data-section="milk-tracking">
+                    <span class="nav-icon">🥛</span>
+                    <span class="nav-text">Milk Records</span>
+                </button>
+                <button class="nav-item" data-section="feeds">
+                    <span class="nav-icon">🌾</span>
+                    <span class="nav-text">Feed Manager</span>
+                </button>
+                <button class="nav-item" data-section="sales">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">Sales (KSH)</span>
+                </button>
+                <button class="nav-item" data-section="analytics">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </button>
+            </div>
+            <div class="menu-footer">
+                <button onclick="exportData()" class="btn-menu">📤 Export Data</button>
+                <button onclick="importData()" class="btn-menu">📥 Import Data</button>
+                <button onclick="clearAllData()" class="btn-menu btn-danger-text">🗑️ Clear All Data</button>
+            </div>
+        </nav>
+        
+        <!-- Overlay for menu -->
+        <div id="menuOverlay" class="menu-overlay" onclick="toggleMenu()"></div>
+        
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <div class="section-header">
+                    <h2>Dashboard</h2>
+                    <p class="date-display" id="currentDate"></p>
+                </div>
+                
+                <div class="quick-stats">
+                    <div class="stat-card" onclick="navigateTo('cows')">
+                        <div class="stat-icon">🐄</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="totalCows">0</span>
+                            <span class="stat-label">Total Cows</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="navigateTo('milk-tracking')">
+                        <div class="stat-icon">🥛</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="todayMilk">0 L</span>
+                            <span class="stat-label">Today's Milk</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="navigateTo('sales')">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="todaySales">KSH 0</span>
+                            <span class="stat-label">Today's Sales</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div id="recentActivity" class="activity-list">
+                        <p class="no-data">No recent activity</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Cows Section -->
+            <section id="cows" class="section">
+                <div class="section-header">
+                    <h2>My Cows</h2>
+                    <button onclick="showAddCowForm()" class="btn-add">
+                        <span>+</span> Add Cow
+                    </button>
+                </div>
+                
+                <!-- Search and Filter -->
+                <div class="search-bar">
+                    <input type="text" id="cowSearch" placeholder="🔍 Search cows..." oninput="filterCows()">
+                </div>
+                
+                <!-- Add Cow Form (Hidden by default) -->
+                <div id="addCowForm" class="modal-form" style="display:none;">
+                    <div class="modal-header">
+                        <h3>Register New Cow</h3>
+                        <button onclick="hideAddCowForm()" class="close-btn">✕</button>
+                    </div>
+                    <form id="cowForm" class="compact-form">
+                        <div class="form-group">
+                            <label>Cow Name *</label>
+                            <input type="text" id="cowName" placeholder="Enter cow name" required autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Photo</label>
+                            <div class="photo-upload">
+                                <input type="file" id="cowPhoto" accept="image/*" capture="environment" onchange="previewPhoto(this)">
+                                <div id="photoPreview" class="photo-preview">
+                                    <span>📸 Tap to take photo</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Breed</label>
+                                <input type="text" id="cowBreed" placeholder="e.g., Friesian">
+                            </div>
+                            <div class="form-group">
+                                <label>Weight (kg)</label>
+                                <input type="number" id="cowWeight" placeholder="0" step="0.1" inputmode="decimal">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="date" id="cowDOB">
+                        </div>
+                        <div class="form-group">
+                            <label>AI Date</label>
+                            <input type="date" id="aiDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Check-up Days</label>
+                            <input type="number" id="checkupDays" placeholder="Days to monitor">
+                        </div>
+                        <div class="form-group">
+                            <label>Health Issues</label>
+                            <textarea id="diseases" rows="2" placeholder="Any diseases or disorders..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary full-width">💾 Save Cow</button>
+                    </form>
+                </div>
+                
+                <!-- Cows List -->
+                <div id="cowsList" class="card-list"></div>
+            </section>
+            
+            <!-- Milk Tracking Section -->
+            <section id="milk-tracking" class="section">
+                <div class="section-header">
+                    <h2>Milk Records</h2>
+                    <button onclick="showAddMilkForm()" class="btn-add">
+                        <span>+</span> Add Record
+                    </button>
+                </div>
+                
+                <div id="addMilkForm" class="modal-form" style="display:none;">
+                    <div class="modal-header">
+                        <h3>Record Milking</h3>
+                        <button onclick="hideAddMilkForm()" class="close-btn">✕</button>
+                    </div>
+                    <form id="milkForm" class="compact-form">
+                        <div class="form-group">
+                            <label>Select Cow *</label>
+                            <select id="milkCowSelect" required>
+                                <option value="">Choose cow...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Date *</label>
+                                <input type="date" id="milkingDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Session</label>
+                                <select id="milkingSession">
+                                    <option value="morning">🌅 Morning</option>
+                                    <option value="afternoon">☀️ Afternoon</option>
+                                    <option value="evening">🌆 Evening</option>
+                                    <option value="custom">🕐 Custom</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" id="customTimeGroup" style="display:none;">
+                            <label>Custom Time</label>
+                            <input type="time" id="milkingTime">
+                        </div>
+                        <div class="form-group">
+                            <label>Milk Quantity (L) *</label>
+                            <input type="number" id="milkQuantity" placeholder="0.00" step="0.01" inputmode="decimal" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Feed Given</label>
+                            <input type="text" id="feedGiven" placeholder="Type of feed...">
+                        </div>
+                        <div class="form-group">
+                            <label>Feed Amount (kg)</label>
+                            <input type="number" id="feedQuantity" placeholder="0.00" step="0.01" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea id="milkingNotes" rows="2" placeholder="Any observations..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary full-width">💾 Save Record</button>
+                    </form>
+                </div>
+                
+                <!-- Milk Records List -->
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterMilkRecords('all')">All</button>
+                    <button class="filter-btn" onclick="filterMilkRecords('today')">Today</button>
+                    <button class="filter-btn" onclick="filterMilkRecords('week')">This Week</button>
+                </div>
+                <div id="milkRecordsList" class="card-list"></div>
+            </section>
+            
+            <!-- Feeds Section -->
+            <section id="feeds" class="section">
+                <div class="section-header">
+                    <h2>Feed Manager</h2>
+                    <button onclick="showAddFeedForm()" class="btn-add">
+                        <span>+</span> Add Feed
+                    </button>
+                </div>
+                
+                <div id="addFeedForm" class="modal-form" style="display:none;">
+                    <div class="modal-header">
+                        <h3>Add Feed</h3>
+                        <button onclick="hideAddFeedForm()" class="close-btn">✕</button>
+                    </div>
+                    <form id="feedForm" class="compact-form">
+                        <div class="form-group">
+                            <label>Feed Type</label>
+                            <select id="feedType" onchange="toggleCustomFeed()">
+                                <option value="dairy_meal">Dairy Meal</option>
+                                <option value="silage">Silage</option>
+                                <option value="hay">Hay</option>
+                                <option value="bran">Bran</option>
+                                <option value="pollard">Pollard</option>
+                                <option value="custom">✨ Custom Feed</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="customFeedGroup" style="display:none;">
+                            <label>Custom Feed Name</label>
+                            <input type="text" id="customFeedType" placeholder="Name your feed...">
+                        </div>
+                        <div class="form-group">
+                            <label>Ingredients</label>
+                            <textarea id="feedIngredients" rows="2" placeholder="e.g., Maize bran, Cotton seed cake..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Additives</label>
+                            <input type="text" id="feedAdditives" placeholder="e.g., Molasses, Minerals...">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Quantity (kg)</label>
+                                <input type="number" id="feedQuantityInventory" placeholder="0" step="0.01" inputmode="decimal">
+                            </div>
+                            <div class="form-group">
+                                <label>Cost/kg (KSH)</label>
+                                <input type="number" id="feedUnitCost" placeholder="0" step="0.01" inputmode="decimal">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Date Purchased</label>
+                            <input type="date" id="feedDatePurchased">
+                        </div>
+                        <button type="button" onclick="calculateEnergyContent()" class="btn-secondary full-width">
+                            ⚡ Calculate Energy Content
+                        </button>
+                        <div class="form-group">
+                            <label>Energy Content (MJ)</label>
+                            <input type="text" id="feedEnergyContent" readonly placeholder="Click calculate">
+                        </div>
+                        <button type="submit" class="btn-primary full-width">💾 Save Feed</button>
+                    </form>
+                </div>
+                
+                <!-- Feed Duration Calculator -->
+                <div class="calculator-card">
+                    <h3>📊 Feed Duration Calculator</h3>
+                    <p>Calculate how long your feed will last</p>
+                    <button onclick="showDurationCalculator()" class="btn-secondary full-width">
+                        Calculate Feed Duration
+                    </button>
+                </div>
+                
+                <!-- Feeds List -->
+                <div id="feedsList" class="card-list"></div>
+            </section>
+            
+            <!-- Sales Section -->
+            <section id="sales" class="section">
+                <div class="section-header">
+                    <h2>Sales (KSH)</h2>
+                    <button onclick="showAddSaleForm()" class="btn-add">
+                        <span>+</span> Record Sale
+                    </button>
+                </div>
+                
+                <div id="addSaleForm" class="modal-form" style="display:none;">
+                    <div class="modal-header">
+                        <h3>Record Sale</h3>
+                        <button onclick="hideAddSaleForm()" class="close-btn">✕</button>
+                    </div>
+                    <form id="saleForm" class="compact-form">
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" id="saleDate" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Quantity (L) *</label>
+                                <input type="number" id="saleQuantity" placeholder="0" step="0.01" inputmode="decimal" required oninput="updateSaleTotal()">
+                            </div>
+                            <div class="form-group">
+                                <label>Price/L (KSH) *</label>
+                                <input type="number" id="salePricePerLiter" placeholder="0" step="0.01" inputmode="decimal" required oninput="updateSaleTotal()">
+                            </div>
+                        </div>
+                        <div class="total-box">
+                            <span>Total Amount:</span>
+                            <span id="saleTotal" class="total-amount">KSH 0.00</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Buyer</label>
+                            <input type="text" id="saleBuyer" placeholder="Buyer name...">
+                        </div>
+                        <button type="submit" class="btn-primary full-width">💾 Save Sale</button>
+                    </form>
+                </div>
+                
+                <!-- Sales Summary -->
+                <div class="sales-summary-grid" id="salesSummary"></div>
+                
+                <!-- Sales List -->
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterSales('all')">All</button>
+                    <button class="filter-btn" onclick="filterSales('day')">Daily</button>
+                    <button class="filter-btn" onclick="filterSales('week')">Weekly</button>
+                    <button class="filter-btn" onclick="filterSales('month')">Monthly</button>
+                    <button class="filter-btn" onclick="filterSales('year')">Yearly</button>
+                </div>
+                <div id="salesList" class="card-list"></div>
+            </section>
+            
+            <!-- Analytics Section -->
+            <section id="analytics" class="section">
+                <div class="section-header">
+                    <h2>Analytics</h2>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="milkChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Quick Action Button -->
+        <button class="fab" onclick="showQuickAction()" aria-label="Quick action">
+            <span>+</span>
+        </button>
+        
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-section="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Home</span>
+            </button>
+            <button class="nav-item" data-section="cows">
+                <span class="nav-icon">🐄</span>
+                <span class="nav-label">Cows</span>
+            </button>
+            <button class="nav-item" data-section="milk-tracking">
+                <span class="nav-icon">🥛</span>
+                <span class="nav-label">Milk</span>
+            </button>
+            <button class="nav-item" data-section="feeds">
+                <span class="nav-icon">🌾</span>
+                <span class="nav-label">Feeds</span>
+            </button>
+            <button class="nav-item" data-section="sales">
+                <span class="nav-icon">💰</span>
+                <span class="nav-label">Sales</span>
+            </button>
+        </nav>
+    </div>
+    
+    <script src="app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered');
+                        checkForUpdate(registration);
+                    })
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+        
+        function checkForUpdate(registration) {
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateNotification();
+                    }
+                });
+            });
+        }
+        
+        function showUpdateNotification() {
+            if (confirm('New version available! Update now?')) {
+                window.location.reload();
+            }
+        }
+        
+        // Install prompt handling
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => {
+                document.getElementById('installPrompt').style.display = 'block';
+            }, 3000);
+        });
+        
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted install');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+            document.getElementById('installPrompt').style.display = 'none';
+        }
+        
+        function dismissInstall() {
+            document.getElementById('installPrompt').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
