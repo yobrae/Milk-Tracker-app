@@ -1,0 +1,136 @@
+html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Farm Owner Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            padding: 15px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .header {
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .update {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .milk_recorded { border-left: 5px solid #4CAF50; }
+        .sale_recorded { border-left: 5px solid #2196F3; }
+        .feed_added { border-left: 5px solid #FF9800; }
+        .cow_added { border-left: 5px solid #9C27B0; }
+        .cow_deleted { border-left: 5px solid #f44336; }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .badge-milk { background: #E8F5E9; color: #4CAF50; }
+        .badge-sale { background: #E3F2FD; color: #2196F3; }
+        .badge-feed { background: #FFF3E0; color: #FF9800; }
+        .badge-cow { background: #F3E5F5; color: #9C27B0; }
+        
+        .amount {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .time {
+            color: #999;
+            font-size: 0.85em;
+        }
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 30px;
+            font-size: 1em;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        .empty {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐄  Farm Dashboard</h1>
+        <p>Real-time updates from your farm</p>
+    </div>
+    
+    <div id="updates">Loading...</div>
+    
+    <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+    
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxv_2lHIDF_2TIVw7ICbrAwBGhqzIuMU9RtD73xvYchqjaXvo1fjx-PthNvua1lGFOEhQ/exec';
+        
+        async function loadData() {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                displayData(data);
+            } catch (error) {
+                document.getElementById('updates').innerHTML = 
+                    '<div class="empty">⚠️ Error loading data</div>';
+            }
+        }
+        
+        function displayData(data) {
+            const updates = document.getElementById('updates');
+            
+            if (data.length <= 1) {
+                updates.innerHTML = '<div class="empty">📭 No updates yet. Data will appear when your farm hand records something.</div>';
+                return;
+            }
+            
+            updates.innerHTML = data.slice(1).reverse().map(row => {
+                const [timestamp, type, cow, quantity, date, amount, feed, notes] = row;
+                const badgeClass = type ? type.split('_')[0] : '';
+                
+                return `
+                    <div class="update ${type}">
+                        <span class="badge badge-${badgeClass}">${type ? type.replace(/_/g, ' ') : 'Update'}</span>
+                        ${cow ? `<p><strong>🐄 Cow:</strong> ${cow}</p>` : ''}
+                        ${quantity ? `<p><strong>🥛 Quantity:</strong> ${quantity}L</p>` : ''}
+                        ${date ? `<p><strong>📅 Date:</strong> ${date}</p>` : ''}
+                        ${amount ? `<p class="amount">💰 KSH ${parseFloat(amount).toLocaleString()}</p>` : ''}
+                        ${feed ? `<p><strong>🌾 Feed:</strong> ${feed}</p>` : ''}
+                        ${notes ? `<p><strong>📝 Notes:</strong> ${notes}</p>` : ''}
+                        <p class="time">🕐 ${new Date(timestamp).toLocaleString('en-KE')}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        loadData();
+        setInterval(loadData, 30000); // Auto-refresh every 30 seconds
+    </script>
+</body>
+</html>
