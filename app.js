@@ -1,7 +1,9 @@
-// Database setup with better error handling
+// Database setup
 let db;
 const DB_NAME = 'DairyFarmDB';
 const DB_VERSION = 3;
+const SYNC_URL = 'https://script.google.com/macros/s/AKfycbyVxvLrsrrbbKT9FZt-zn9-nBVx9XT2sWxLsAZhCSlKmASoZaqsLgUyC0vxithw1u1qAw/exec';
+const FARM_ID = 'YOBRAE_FARM';
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,23 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initApp() {
-    // Hide splash screen after load
     setTimeout(() => {
         document.getElementById('splashScreen').style.display = 'none';
     }, 2000);
     
-    // Set today's date
     document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-KE', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
     
-    // Initialize database
     initDB();
-    
-    // Setup event listeners
     setupNavigation();
     setupFormListeners();
     setupTouchGestures();
@@ -35,51 +29,55 @@ function initApp() {
 function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
-    request.onupgradeneeded = (event) => {
-        db = event.target.result;
+    request.onupgradeneeded = ({ target: { result: database } }) => {
+        db = database;
+        const { objectStoreNames } = db;
         
-        // Create stores if they don't exist
-        if (!db.objectStoreNames.contains('cows')) {
+        if (!objectStoreNames.contains('cows')) {
             const cowStore = db.createObjectStore('cows', { keyPath: 'id', autoIncrement: true });
             cowStore.createIndex('name', 'name', { unique: false });
         }
         
-        if (!db.objectStoreNames.contains('milkRecords')) {
+        if (!objectStoreNames.contains('milkRecords')) {
             const milkStore = db.createObjectStore('milkRecords', { keyPath: 'id', autoIncrement: true });
             milkStore.createIndex('cowId', 'cowId', { unique: false });
             milkStore.createIndex('date', 'date', { unique: false });
         }
         
-        if (!db.objectStoreNames.contains('sales')) {
+        if (!objectStoreNames.contains('sales')) {
             const salesStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
             salesStore.createIndex('date', 'date', { unique: false });
         }
         
-        if (!db.objectStoreNames.contains('feedInventory')) {
+        if (!objectStoreNames.contains('feedInventory')) {
             const feedStore = db.createObjectStore('feedInventory', { keyPath: 'id', autoIncrement: true });
             feedStore.createIndex('type', 'type', { unique: false });
         }
+        
+        if (!objectStoreNames.contains('syncQueue')) {
+            db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+        }
     };
     
-    request.onsuccess = (event) => {
-        db = event.target.result;
-        console.log('Database initialized successfully');
+    request.onsuccess = ({ target: { result: database } }) => {
+        db = database;
+        console.log('Database initialized');
         loadDashboardData();
+        processSyncQueue();
         showToast('App ready! 📱');
     };
     
-    request.onerror = (event) => {
-        console.error('Database error:', event.target.error);
-        showToast('Error loading app. Please refresh.');
+    request.onerror = ({ target: { error } }) => {
+        console.error('Database error:', error);
+        showToast('Error loading app');
     };
 }
 
 // Navigation
 function setupNavigation() {
-    // Bottom navigation
     document.querySelectorAll('.bottom-nav .nav-item, .menu-items .nav-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const section = this.dataset.section;
+        item.addEventListener('click', () => {
+            const { section } = item.dataset;
             navigateTo(section);
             toggleMenu(false);
         });
@@ -87,50 +85,30 @@ function setupNavigation() {
 }
 
 function navigateTo(section) {
-    // Update active states
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     document.querySelectorAll(`[data-section="${section}"]`).forEach(el => el.classList.add('active'));
-    
-    // Show section
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.getElementById(section)?.classList.add('active');
-    
-    // Load section data
     loadSectionData(section);
-    
-    // Scroll to top
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function loadSectionData(section) {
-    switch(section) {
-        case 'dashboard':
-            loadDashboardData();
-            break;
-        case 'cows':
-            loadCowsList();
-            break;
-        case 'milk-tracking':
-            loadCowDropdown();
-            loadMilkRecords();
-            break;
-        case 'feeds':
-            loadFeeds();
-            break;
-        case 'sales':
-            loadSales();
-            break;
-        case 'analytics':
-            loadAnalytics();
-            break;
-    }
+    const loaders = {
+        dashboard: loadDashboardData,
+        cows: loadCowsList,
+        'milk-tracking': () => { loadCowDropdown(); loadMilkRecords(); },
+        feeds: loadFeeds,
+        sales: loadSales,
+        analytics: loadAnalytics
+    };
+    loaders[section]?.();
 }
 
 // Menu Toggle
 function toggleMenu(show = null) {
     const menu = document.getElementById('sideMenu');
     const overlay = document.getElementById('menuOverlay');
-    
     if (show === null) {
         menu.classList.toggle('open');
         overlay.classList.toggle('show');
@@ -186,29 +164,25 @@ function hideAddSaleForm() {
 }
 
 // Photo Preview
-function previewPhoto(input) {
+function previewPhoto({ files }) {
     const preview = document.getElementById('photoPreview');
-    if (input.files && input.files[0]) {
+    if (files?.[0]) {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Cow photo">`;
+        reader.onload = ({ target: { result } }) => {
+            preview.innerHTML = `<img src="${result}" alt="Cow photo">`;
         };
-        reader.readAsDataURL(input.files[0]);
+        reader.readAsDataURL(files[0]);
     }
 }
 
-// Cow Management
+// ============ COW MANAGEMENT ============
 function saveCow(event) {
     event.preventDefault();
     
     const photoInput = document.getElementById('cowPhoto');
-    let photoData = null;
-    
-    if (photoInput.files && photoInput.files[0]) {
+    if (photoInput.files?.[0]) {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            saveCowData(e.target.result);
-        };
+        reader.onload = ({ target: { result } }) => saveCowData(result);
         reader.readAsDataURL(photoInput.files[0]);
     } else {
         saveCowData(null);
@@ -233,13 +207,21 @@ function saveCowData(photoData) {
     const request = store.add(cowData);
     
     request.onsuccess = () => {
+        // 🔥 SYNC TO CLOUD
+        syncToCloud({
+            timestamp: new Date().toISOString(),
+            type: 'cow_added',
+            cowName: cowData.name,
+            quantity: '',
+            date: new Date().toISOString().split('T')[0],
+            amount: '',
+            feedType: '',
+            notes: 'Breed: ' + (cowData.breed || 'N/A') + ', Weight: ' + cowData.weight + 'kg'
+        });
+        
         showToast('✅ Cow registered successfully!');
         hideAddCowForm();
         loadCowsList();
-    };
-    
-    request.onerror = () => {
-        showToast('❌ Error saving cow. Please try again.');
     };
 }
 
@@ -248,8 +230,8 @@ function loadCowsList() {
     const store = transaction.objectStore('cows');
     const request = store.getAll();
     
-    request.onsuccess = () => {
-        displayCowsList(request.result);
+    request.onsuccess = ({ target: { result: cows } }) => {
+        displayCowsList(cows);
     };
 }
 
@@ -266,50 +248,71 @@ function displayCowsList(cows) {
         return;
     }
     
-    container.innerHTML = cows.map(cow => `
+    container.innerHTML = cows.map(({ id, name, photo, breed, weight, aiDate, diseases }) => `
         <div class="cow-card">
             <div class="cow-photo-container">
-                ${cow.photo ? 
-                    `<img src="${cow.photo}" alt="${cow.name}" class="cow-image">` :
-                    '<div class="cow-placeholder">🐄</div>'
-                }
+                ${photo ? `<img src="${photo}" alt="${name}" class="cow-image">` : '<div class="cow-placeholder">🐄</div>'}
             </div>
             <div class="cow-details">
-                <h3>${cow.name}</h3>
-                <p>🐾 ${cow.breed || 'Unknown breed'}</p>
-                <p>⚖️ ${cow.weight} kg</p>
-                ${cow.aiDate ? `<p>🔬 AI: ${formatDate(cow.aiDate)}</p>` : ''}
-                ${cow.diseases ? `<p class="warning">⚠️ ${cow.diseases}</p>` : ''}
+                <h3>${name}</h3>
+                <p>🐾 ${breed || 'Unknown breed'}</p>
+                <p>⚖️ ${weight} kg</p>
+                ${aiDate ? `<p>🔬 AI: ${formatDate(aiDate)}</p>` : ''}
+                ${diseases ? `<p class="warning">⚠️ ${diseases}</p>` : ''}
             </div>
             <div class="cow-actions">
-                <button onclick="viewCowChart(${cow.id})" class="btn-icon">📊</button>
-                <button onclick="deleteCow(${cow.id})" class="btn-icon">🗑️</button>
+                <button onclick="viewCowChart(${id})" class="btn-icon">📊</button>
+                <button onclick="deleteCow(${id})" class="btn-icon">🗑️</button>
             </div>
         </div>
     `).join('');
 }
 
-// Milk Recording
+// ============ MILK RECORDING ============
 function recordMilk(event) {
     event.preventDefault();
     
+    const cowId = parseInt(document.getElementById('milkCowSelect').value);
+    const date = document.getElementById('milkingDate').value;
+    const session = document.getElementById('milkingSession').value;
+    const time = document.getElementById('milkingTime').value;
+    const quantity = parseFloat(document.getElementById('milkQuantity').value);
+    const feedGiven = document.getElementById('feedGiven').value;
+    const feedQuantity = parseFloat(document.getElementById('feedQuantity').value) || 0;
+    const notes = document.getElementById('milkingNotes').value;
+    
     const milkData = {
-        cowId: parseInt(document.getElementById('milkCowSelect').value),
-        date: document.getElementById('milkingDate').value,
-        time: document.getElementById('milkingTime').value || '',
-        session: document.getElementById('milkingSession').value,
-        quantity: parseFloat(document.getElementById('milkQuantity').value),
-        feedGiven: document.getElementById('feedGiven').value,
-        feedQuantity: parseFloat(document.getElementById('feedQuantity').value) || 0,
-        notes: document.getElementById('milkingNotes').value,
+        cowId: cowId,
+        date: date,
+        time: time || '',
+        session: session,
+        quantity: quantity,
+        feedGiven: feedGiven,
+        feedQuantity: feedQuantity,
+        notes: notes,
         createdAt: new Date().toISOString()
     };
     
+    // Save locally
     const transaction = db.transaction(['milkRecords'], 'readwrite');
     const store = transaction.objectStore('milkRecords');
     const request = store.add(milkData);
     
     request.onsuccess = () => {
+        // 🔥 SYNC TO CLOUD - Get cow name first
+        getCowName(cowId, (cowName) => {
+            syncToCloud({
+                timestamp: new Date().toISOString(),
+                type: 'milk_recorded',
+                cowName: cowName,
+                quantity: quantity.toString(),
+                date: date,
+                amount: '',
+                feedType: feedGiven,
+                notes: notes + (feedQuantity > 0 ? ' | Feed: ' + feedQuantity + 'kg' : '')
+            });
+        });
+        
         showToast('✅ Milk record saved!');
         hideAddMilkForm();
         loadMilkRecords();
@@ -317,27 +320,53 @@ function recordMilk(event) {
     };
 }
 
-// Sales Recording
+function getCowName(cowId, callback) {
+    const transaction = db.transaction(['cows'], 'readonly');
+    const store = transaction.objectStore('cows');
+    const request = store.get(cowId);
+    
+    request.onsuccess = ({ target: { result } }) => {
+        callback(result?.name || 'Unknown');
+    };
+}
+
+// ============ SALES RECORDING ============
 function recordSale(event) {
     event.preventDefault();
     
-    const quantity = parseFloat(document.getElementById('saleQuantity').value);
-    const price = parseFloat(document.getElementById('salePricePerLiter').value);
+    const date = document.getElementById('saleDate').value;
+    const quantity = parseFloat(document.getElementById('saleQuantity').value) || 0;
+    const pricePerLiter = parseFloat(document.getElementById('salePricePerLiter').value) || 0;
+    const totalAmount = quantity * pricePerLiter;
+    const buyer = document.getElementById('saleBuyer').value;
     
     const saleData = {
-        date: document.getElementById('saleDate').value,
+        date: date,
         quantity: quantity,
-        pricePerLiter: price,
-        totalAmount: quantity * price,
-        buyer: document.getElementById('saleBuyer').value,
+        pricePerLiter: pricePerLiter,
+        totalAmount: totalAmount,
+        buyer: buyer,
         createdAt: new Date().toISOString()
     };
     
+    // Save locally
     const transaction = db.transaction(['sales'], 'readwrite');
     const store = transaction.objectStore('sales');
     const request = store.add(saleData);
     
     request.onsuccess = () => {
+        // 🔥 SYNC TO CLOUD
+        syncToCloud({
+            timestamp: new Date().toISOString(),
+            type: 'sale_recorded',
+            cowName: '',
+            quantity: quantity.toString(),
+            date: date,
+            totalAmount: totalAmount.toString(),
+            feedType: '',
+            notes: 'Buyer: ' + (buyer || 'N/A') + ' | Price: KSH ' + pricePerLiter + '/L'
+        });
+        
         showToast('✅ Sale recorded!');
         hideAddSaleForm();
         loadSales();
@@ -349,10 +378,10 @@ function updateSaleTotal() {
     const quantity = parseFloat(document.getElementById('saleQuantity').value) || 0;
     const price = parseFloat(document.getElementById('salePricePerLiter').value) || 0;
     const total = quantity * price;
-    document.getElementById('saleTotal').textContent = `KSH ${total.toFixed(2)}`;
+    document.getElementById('saleTotal').textContent = 'KSH ' + total.toFixed(2);
 }
 
-// Feed Management
+// ============ FEED MANAGEMENT ============
 function saveFeed(event) {
     event.preventDefault();
     
@@ -373,6 +402,18 @@ function saveFeed(event) {
     const request = store.add(feedData);
     
     request.onsuccess = () => {
+        // 🔥 SYNC TO CLOUD
+        syncToCloud({
+            timestamp: new Date().toISOString(),
+            type: 'feed_added',
+            cowName: '',
+            quantity: feedData.quantity.toString(),
+            date: feedData.datePurchased,
+            amount: (feedData.quantity * feedData.unitCost).toString(),
+            feedType: feedData.type === 'custom' ? feedData.customType : feedData.type,
+            notes: 'Energy: ' + feedData.energyContent + ' MJ | Cost: KSH ' + feedData.unitCost + '/kg'
+        });
+        
         showToast('✅ Feed saved!');
         hideAddFeedForm();
         loadFeeds();
@@ -384,23 +425,14 @@ function calculateEnergyContent() {
     const additives = document.getElementById('feedAdditives').value;
     const quantity = parseFloat(document.getElementById('feedQuantityInventory').value) || 0;
     
-    let energyPerKg = 0;
-    
-    switch(feedType) {
-        case 'dairy_meal': energyPerKg = 12.5; break;
-        case 'silage': energyPerKg = 4.5; break;
-        case 'hay': energyPerKg = 8.0; break;
-        case 'bran': energyPerKg = 10.0; break;
-        case 'pollard': energyPerKg = 9.5; break;
-        case 'custom': energyPerKg = 10.0; break;
-    }
-    
-    if (additives.includes('molasses')) energyPerKg += 1.0;
-    if (additives.includes('minerals')) energyPerKg += 0.5;
+    const energyMap = { dairy_meal: 12.5, silage: 4.5, hay: 8.0, bran: 10.0, pollard: 9.5, custom: 10.0 };
+    let energyPerKg = energyMap[feedType] || 8.0;
+    if (additives?.includes('molasses')) energyPerKg += 1.0;
+    if (additives?.includes('minerals')) energyPerKg += 0.5;
     
     const totalEnergy = energyPerKg * quantity;
     document.getElementById('feedEnergyContent').value = totalEnergy.toFixed(2);
-    showToast(`Energy: ${totalEnergy.toFixed(2)} MJ`);
+    showToast('Energy: ' + totalEnergy.toFixed(2) + ' MJ');
 }
 
 function toggleCustomFeed() {
@@ -408,90 +440,267 @@ function toggleCustomFeed() {
     document.getElementById('customFeedGroup').style.display = type === 'custom' ? 'block' : 'none';
 }
 
-// Dashboard
+// ============ CLOUD SYNC ============
+async function syncToCloud(data) {
+    console.log('Syncing to cloud:', data);
+    
+    if (navigator.onLine) {
+        try {
+            const response = await fetch(SYNC_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            console.log('Sync result:', result);
+            
+            if (result.success) {
+                console.log('✅ Synced successfully!');
+                return true;
+            } else {
+                console.error('Sync failed:', result.error);
+                saveToLocalSyncQueue(data);
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            saveToLocalSyncQueue(data);
+        }
+    } else {
+        console.log('Offline - queuing data');
+        saveToLocalSyncQueue(data);
+    }
+}
+
+function saveToLocalSyncQueue(data) {
+    const transaction = db.transaction(['syncQueue'], 'readwrite');
+    const store = transaction.objectStore('syncQueue');
+    store.add({ ...data, queuedAt: new Date().toISOString() });
+    console.log('Saved to sync queue');
+}
+
+async function processSyncQueue() {
+    const transaction = db.transaction(['syncQueue'], 'readonly');
+    const store = transaction.objectStore('syncQueue');
+    const request = store.getAll();
+    
+    request.onsuccess = async ({ target: { result: queue } }) => {
+        if (queue.length > 0 && navigator.onLine) {
+            console.log('Processing sync queue:', queue.length, 'items');
+            for (const { id, ...data } of queue) {
+                const synced = await syncToCloud(data);
+                if (synced) {
+                    const deleteTx = db.transaction(['syncQueue'], 'readwrite');
+                    deleteTx.objectStore('syncQueue').delete(id);
+                }
+            }
+        }
+    };
+}
+
+// ============ DASHBOARD ============
 function loadDashboardData() {
-    // Load cows count
-    const cowTransaction = db.transaction(['cows'], 'readonly');
-    cowTransaction.objectStore('cows').getAll().onsuccess = (e) => {
-        document.getElementById('totalCows').textContent = e.target.result.length;
+    const cowsTx = db.transaction(['cows'], 'readonly');
+    cowsTx.objectStore('cows').getAll().onsuccess = ({ target: { result: cows } }) => {
+        document.getElementById('totalCows').textContent = cows.length;
     };
     
-    // Load today's milk
-    const milkTransaction = db.transaction(['milkRecords'], 'readonly');
-    milkTransaction.objectStore('milkRecords').getAll().onsuccess = (e) => {
+    const milkTx = db.transaction(['milkRecords'], 'readonly');
+    milkTx.objectStore('milkRecords').getAll().onsuccess = ({ target: { result: records } }) => {
         const today = new Date().toISOString().split('T')[0];
-        const todayMilk = e.target.result
-            .filter(r => r.date === today)
-            .reduce((sum, r) => sum + r.quantity, 0);
-        document.getElementById('todayMilk').textContent = `${todayMilk.toFixed(1)} L`;
+        const todayMilk = records
+            .filter(({ date }) => date === today)
+            .reduce((sum, { quantity }) => sum + quantity, 0);
+        document.getElementById('todayMilk').textContent = todayMilk.toFixed(1) + ' L';
     };
     
-    // Load today's sales
-    const salesTransaction = db.transaction(['sales'], 'readonly');
-    salesTransaction.objectStore('sales').getAll().onsuccess = (e) => {
+    const salesTx = db.transaction(['sales'], 'readonly');
+    salesTx.objectStore('sales').getAll().onsuccess = ({ target: { result: sales } }) => {
         const today = new Date().toISOString().split('T')[0];
-        const todaySales = e.target.result
-            .filter(s => s.date === today)
-            .reduce((sum, s) => sum + s.totalAmount, 0);
-        document.getElementById('todaySales').textContent = `KSH ${todaySales.toFixed(2)}`;
+        const todaySales = sales
+            .filter(({ date }) => date === today)
+            .reduce((sum, { totalAmount }) => sum + totalAmount, 0);
+        document.getElementById('todaySales').textContent = 'KSH ' + todaySales.toFixed(2);
     };
     
-    // Load recent activity
     loadRecentActivity();
 }
 
 function loadRecentActivity() {
     const container = document.getElementById('recentActivity');
+    const transaction = db.transaction(['milkRecords', 'sales'], 'readonly');
     
-    const milkTransaction = db.transaction(['milkRecords'], 'readonly');
-    milkTransaction.objectStore('milkRecords').getAll().onsuccess = (e) => {
-        const records = e.target.result.slice(-5).reverse();
+    transaction.objectStore('milkRecords').getAll().onsuccess = ({ target: { result: records } }) => {
+        transaction.objectStore('sales').getAll().onsuccess = ({ target: { result: sales } }) => {
+            const activities = [
+                ...records.map(({ quantity, date, createdAt }) => ({
+                    icon: '🥛', text: 'Milk: ' + quantity + 'L', date, createdAt
+                })),
+                ...sales.map(({ quantity, totalAmount, date, createdAt }) => ({
+                    icon: '💰', text: 'Sale: KSH ' + totalAmount, date, createdAt
+                }))
+            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+            
+            if (activities.length === 0) {
+                container.innerHTML = '<p class="no-data">No recent activity</p>';
+                return;
+            }
+            
+            container.innerHTML = activities.map(({ icon, text, date, createdAt }) => `
+                <div class="activity-item">
+                    <span class="activity-icon">${icon}</span>
+                    <div class="activity-details">
+                        <strong>${text}</strong>
+                        <p>${formatDate(date)}</p>
+                        <small>${timeAgo(createdAt)}</small>
+                    </div>
+                </div>
+            `).join('');
+        };
+    };
+}
+
+// ============ LOAD FUNCTIONS ============
+function loadCowDropdown() {
+    const transaction = db.transaction(['cows'], 'readonly');
+    transaction.objectStore('cows').getAll().onsuccess = ({ target: { result: cows } }) => {
+        const select = document.getElementById('milkCowSelect');
+        select.innerHTML = '<option value="">Select Cow</option>' + 
+            cows.map(({ id, name }) => '<option value="' + id + '">' + name + '</option>').join('');
+    };
+}
+
+function loadMilkRecords() {
+    const transaction = db.transaction(['milkRecords'], 'readonly');
+    transaction.objectStore('milkRecords').getAll().onsuccess = ({ target: { result: records } }) => {
+        const container = document.getElementById('milkRecordsList');
         
         if (records.length === 0) {
-            container.innerHTML = '<p class="no-data">No recent activity</p>';
+            container.innerHTML = '<p class="no-data">No milk records</p>';
             return;
         }
         
-        container.innerHTML = records.map(record => `
-            <div class="activity-item">
-                <span class="activity-icon">🥛</span>
-                <div class="activity-details">
-                    <strong>Milk recorded</strong>
-                    <p>${record.quantity}L on ${formatDate(record.date)}</p>
-                    <small>${timeAgo(record.createdAt)}</small>
+        container.innerHTML = records.slice().reverse().map(({ cowId, date, time, session, quantity, feedGiven, feedQuantity }) => `
+            <div class="milk-record">
+                <div class="record-header">
+                    <span class="record-id">Cow #${cowId}</span>
+                    <span class="record-session">${session}</span>
                 </div>
+                <p>📅 ${formatDate(date)} ${time ? 'at ' + time : ''}</p>
+                <p>🥛 ${quantity} L</p>
+                ${feedGiven ? '<p>🌾 ' + feedGiven + ' (' + feedQuantity + 'kg)</p>' : ''}
             </div>
         `).join('');
     };
 }
 
-// Utility Functions
+function loadSales() {
+    const transaction = db.transaction(['sales'], 'readonly');
+    transaction.objectStore('sales').getAll().onsuccess = ({ target: { result: sales } }) => {
+        const container = document.getElementById('salesList');
+        
+        if (sales.length === 0) {
+            container.innerHTML = '<p class="no-data">No sales recorded</p>';
+            return;
+        }
+        
+        container.innerHTML = sales.slice().reverse().map(({ date, quantity, pricePerLiter, totalAmount, buyer }) => `
+            <div class="sale-record">
+                <p>📅 ${formatDate(date)}</p>
+                <p>🥛 ${quantity} L × KSH ${pricePerLiter}</p>
+                <p class="sale-total">💰 KSH ${totalAmount.toFixed(2)}</p>
+                ${buyer ? '<p>👤 ' + buyer + '</p>' : ''}
+            </div>
+        `).join('');
+        
+        updateSalesSummary(sales);
+    };
+}
+
+function updateSalesSummary(sales) {
+    const today = new Date().toISOString().split('T')[0];
+    const { start, end } = getWeekRange();
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const thisYear = new Date().getFullYear().toString();
+    
+    const summaries = {
+        today: sales.filter(s => s.date === today).reduce((sum, s) => sum + s.totalAmount, 0),
+        week: sales.filter(s => s.date >= start && s.date <= end).reduce((sum, s) => sum + s.totalAmount, 0),
+        month: sales.filter(s => s.date.startsWith(thisMonth)).reduce((sum, s) => sum + s.totalAmount, 0),
+        year: sales.filter(s => s.date.startsWith(thisYear)).reduce((sum, s) => sum + s.totalAmount, 0)
+    };
+    
+    document.getElementById('salesSummary').innerHTML = Object.entries({
+        Today: summaries.today,
+        'This Week': summaries.week,
+        'This Month': summaries.month,
+        'This Year': summaries.year
+    }).map(([label, value]) => `
+        <div class="summary-card"><h3>${label}</h3><p>KSH ${value.toFixed(2)}</p></div>
+    `).join('');
+}
+
+function loadFeeds() {
+    const transaction = db.transaction(['feedInventory'], 'readonly');
+    transaction.objectStore('feedInventory').getAll().onsuccess = ({ target: { result: feeds } }) => {
+        const container = document.getElementById('feedsList');
+        
+        if (feeds.length === 0) {
+            container.innerHTML = '<p class="no-data">No feeds recorded</p>';
+            return;
+        }
+        
+        container.innerHTML = feeds.map(({ type, customType, quantity, energyContent, unitCost, datePurchased }) => `
+            <div class="feed-card">
+                <h3>${type === 'custom' ? customType : type}</h3>
+                <p>📦 ${quantity} kg</p>
+                <p>⚡ ${energyContent.toFixed(2)} MJ</p>
+                <p>💵 KSH ${unitCost}/kg</p>
+                <p>📅 ${formatDate(datePurchased)}</p>
+            </div>
+        `).join('');
+    };
+}
+
+function loadAnalytics() {
+    // Analytics loaded when section is viewed
+    console.log('Analytics section loaded');
+}
+
+// ============ UTILITY FUNCTIONS ============
 function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString('en-KE', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+        year: 'numeric', month: 'short', day: 'numeric'
     });
 }
 
 function timeAgo(dateString) {
     const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
-    
     if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
+    if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+    if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+    return Math.floor(seconds / 86400) + 'd ago';
+}
+
+function getWeekRange() {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const start = new Date(now);
+    start.setDate(now.getDate() - dayOfWeek);
+    const end = new Date(now);
+    end.setDate(now.getDate() + (6 - dayOfWeek));
+    return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+    };
 }
 
 function deleteCow(id) {
@@ -508,52 +717,62 @@ function deleteCow(id) {
 
 function viewCowChart(cowId) {
     navigateTo('analytics');
-    // Load chart for specific cow
 }
 
-// Touch Gestures
+// ============ FORM LISTENERS ============
+function setupFormListeners() {
+    document.getElementById('cowForm')?.addEventListener('submit', saveCow);
+    document.getElementById('milkForm')?.addEventListener('submit', recordMilk);
+    document.getElementById('feedForm')?.addEventListener('submit', saveFeed);
+    document.getElementById('saleForm')?.addEventListener('submit', recordSale);
+    
+    document.getElementById('milkingSession')?.addEventListener('change', function() {
+        document.getElementById('customTimeGroup').style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+}
+
+// ============ TOUCH GESTURES ============
 function setupTouchGestures() {
     let touchStartX = 0;
-    
-    document.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-    });
-    
-    document.addEventListener('touchend', (e) => {
-        const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchStartX - touchEndX;
-        
-        // Swipe right to open menu
-        if (diff < -50 && touchStartX < 30) {
-            toggleMenu(true);
-        }
-        
-        // Swipe left to close menu
-        if (diff > 50) {
-            toggleMenu(false);
-        }
+    document.addEventListener('touchstart', ({ touches }) => { touchStartX = touches[0].clientX; });
+    document.addEventListener('touchend', ({ changedTouches }) => {
+        const diff = touchStartX - changedTouches[0].clientX;
+        if (diff < -50 && touchStartX < 30) toggleMenu(true);
+        if (diff > 50) toggleMenu(false);
     });
 }
 
-// Export/Import Data
+// ============ ONLINE/OFFLINE ============
+window.addEventListener('online', () => {
+    showToast('📤 Syncing data...');
+    processSyncQueue();
+});
+
+window.addEventListener('offline', () => {
+    showToast('🟡 Offline - Data will sync when connected');
+});
+
+// Periodic sync
+setInterval(processSyncQueue, 30000);
+
+// ============ EXPORT/IMPORT ============
 function exportData() {
-    const data = {};
-    
     const stores = ['cows', 'milkRecords', 'sales', 'feedInventory'];
+    const data = {};
     let completed = 0;
     
     stores.forEach(storeName => {
         const transaction = db.transaction([storeName], 'readonly');
-        transaction.objectStore(storeName).getAll().onsuccess = (e) => {
-            data[storeName] = e.target.result;
+        transaction.objectStore(storeName).getAll().onsuccess = ({ target: { result: items } }) => {
+            data[storeName] = items;
             completed++;
-            
             if (completed === stores.length) {
-                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `dairy-farm-backup-${new Date().toISOString().split('T')[0]}.json`;
+                const a = Object.assign(document.createElement('a'), {
+                    href: url,
+                    download: 'dairy-farm-backup-' + new Date().toISOString().split('T')[0] + '.json'
+                });
                 a.click();
                 showToast('✅ Data exported!');
             }
@@ -565,36 +784,26 @@ function importData() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    
     input.onchange = (e) => {
-        const file = e.target.files[0];
         const reader = new FileReader();
-        
         reader.onload = (event) => {
             const data = JSON.parse(event.target.result);
-            
             Object.keys(data).forEach(storeName => {
                 const transaction = db.transaction([storeName], 'readwrite');
-                const store = transaction.objectStore(storeName);
-                data[storeName].forEach(item => store.add(item));
+                data[storeName].forEach(item => transaction.objectStore(storeName).add(item));
             });
-            
             showToast('✅ Data imported!');
             loadDashboardData();
         };
-        
-        reader.readAsText(file);
+        reader.readAsText(e.target.files[0]);
     };
-    
     input.click();
 }
 
 function clearAllData() {
     if (confirm('⚠️ Delete ALL data? This cannot be undone!')) {
-        const stores = ['cows', 'milkRecords', 'sales', 'feedInventory'];
-        stores.forEach(storeName => {
-            db.transaction([storeName], 'readwrite')
-              .objectStore(storeName).clear();
+        ['cows', 'milkRecords', 'sales', 'feedInventory'].forEach(storeName => {
+            db.transaction([storeName], 'readwrite').objectStore(storeName).clear();
         });
         showToast('All data cleared');
         loadDashboardData();
@@ -609,10 +818,8 @@ function showQuickAction() {
         { label: 'Add Feed', action: () => { navigateTo('feeds'); showAddFeedForm(); } }
     ];
     
-    // Simple action sheet
-    const message = actions.map((a, i) => `${i + 1}. ${a.label}`).join('\n');
-    const choice = prompt(`Quick Action:\n\n${message}\n\nEnter number:`);
-    
+    const message = actions.map((a, i) => (i + 1) + '. ' + a.label).join('\n');
+    const choice = prompt('Quick Action:\n\n' + message + '\n\nEnter number:');
     if (choice && actions[parseInt(choice) - 1]) {
         actions[parseInt(choice) - 1].action();
     }
@@ -620,26 +827,8 @@ function showQuickAction() {
 
 function showSyncStatus() {
     if (navigator.onLine) {
-        showToast('🟢 Online - Data is saved locally');
+        showToast('🟢 Online - Data is syncing');
     } else {
         showToast('🟡 Offline - Data will sync when online');
     }
 }
-
-// Set up form listeners
-function setupFormListeners() {
-    document.getElementById('cowForm')?.addEventListener('submit', saveCow);
-    document.getElementById('milkForm')?.addEventListener('submit', recordMilk);
-    document.getElementById('feedForm')?.addEventListener('submit', saveFeed);
-    document.getElementById('saleForm')?.addEventListener('submit', recordSale);
-    
-    // Show/hide custom time for milking
-    document.getElementById('milkingSession')?.addEventListener('change', function() {
-        document.getElementById('customTimeGroup').style.display = 
-            this.value === 'custom' ? 'block' : 'none';
-    });
-}
-
-// Online/Offline detection
-window.addEventListener('online', () => showToast('🟢 Back online!'));
-window.addEventListener('offline', () => showToast('🟡 You are offline'));
