@@ -890,3 +890,176 @@ body {
         color: #81C784 !important;
     }
 }
+/* ============================================ */
+/* FORCE TEXT VISIBILITY - ALL TEXT MUST BE DARK */
+/* ============================================ */
+
+/* All card text */
+.cow-card,
+.cow-card *,
+.cow-details,
+.cow-details *,
+.milk-record,
+.milk-record *,
+.sale-record,
+.sale-record *,
+.feed-card,
+.feed-card *,
+.record-item,
+.record-item *,
+.activity-item,
+.activity-item * {
+    color: #000000 !important;
+}
+
+/* Specific elements */
+.cow-card p,
+.cow-details p,
+.cow-details h3,
+.milk-record p,
+.sale-record p,
+.feed-card p,
+.feed-card h3,
+.activity-details strong,
+.activity-details p,
+.record-header,
+.record-header span {
+    color: #000000 !important;
+}
+
+/* Feed card */
+.feed-card h3 {
+    color: #000000 !important;
+}
+
+/* Record items */
+.milk-record p,
+.sale-record p {
+    color: #000000 !important;
+}
+
+/* Sale total - keep green */
+.sale-total {
+    color: #2E7D32 !important;
+    font-weight: bold;
+}
+
+/* Cow name */
+.cow-details h3 {
+    color: #000000 !important;
+    font-weight: 600;
+}
+
+/* Warning text - keep red */
+.warning,
+.disease-warning {
+    color: #D32F2F !important;
+}
+
+/* Timestamps - keep gray */
+.time,
+.timestamp,
+small {
+    color: #666666 !important;
+}
+
+/* No data messages */
+.no-data,
+.empty-state,
+.empty-state h3,
+.empty-state p {
+    color: #666666 !important;
+}
+
+/* Badge session */
+.record-session,
+.badge {
+    color: #2E7D32 !important;
+}
+
+/* Activity items */
+.activity-details strong {
+    color: #000000 !important;
+    font-weight: 600;
+}
+
+.activity-details p {
+    color: #333333 !important;
+}
+
+/* Summary cards */
+.summary-card h3 {
+    color: #666666 !important;
+}
+
+.summary-card p {
+    color: #2E7D32 !important;
+    font-weight: bold;
+}
+
+/* Stat cards */
+.stat-card .stat-value {
+    color: #2E7D32 !important;
+    font-weight: bold;
+}
+
+.stat-card .stat-label {
+    color: #666666 !important;
+}
+
+/* Dashboard cards */
+.dashboard-card h3 {
+    color: #FFFFFF !important;
+}
+
+.dashboard-card p {
+    color: #FFFFFF !important;
+}
+
+/* Section headers */
+.section h2 {
+    color: #2E7D32 !important;
+}
+
+/* List containers */
+.list-container,
+.list-container *,
+.card-list,
+.card-list * {
+    color: #000000 !important;
+}
+
+/* Record header */
+.record-header {
+    color: #333333 !important;
+}
+
+.record-id {
+    color: #666666 !important;
+}
+
+/* Form labels */
+.form-group label {
+    color: #333333 !important;
+}
+
+/* Any remaining white text */
+*[style*="color: white"],
+*[style*="color: #fff"],
+*[style*="color: #ffffff"],
+*[style*="color: #FFF"],
+*[style*="color: #FFFFFF"] {
+    color: #000000 !important;
+}
+
+/* Override dark mode */
+@media (prefers-color-scheme: dark) {
+    .cow-card *,
+    .milk-record *,
+    .sale-record *,
+    .feed-card *,
+    .activity-item *,
+    .record-item * {
+        color: #000000 !important;
+    }
+}
