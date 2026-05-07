@@ -747,3 +747,146 @@ body {
         background: #2d2d2d;
     }
 }
+/* Fix white text on white background */
+.cow-details h3,
+.cow-details p,
+.cow-details strong,
+.record-header,
+.milk-record p,
+.sale-record p,
+.feed-card h3,
+.feed-card p,
+.activity-details strong,
+.activity-details p,
+.stat-value,
+.stat-label,
+.dashboard-card h3,
+.dashboard-card p,
+.summary-card h3,
+.summary-card p,
+.section h2,
+.section h3,
+.form-group label,
+.empty-state h3,
+.empty-state p,
+.no-data,
+.card-list h3,
+.card-list p,
+.list-container h3,
+.list-container p {
+    color: #333 !important;
+}
+
+/* Cow card specific */
+.cow-details {
+    color: #333;
+}
+
+.cow-details h3 {
+    color: #1a1a1a !important;
+    font-weight: 600;
+}
+
+.cow-details p {
+    color: #555 !important;
+}
+
+.warning {
+    color: #f44336 !important;
+    font-weight: 600;
+}
+
+/* Record items */
+.milk-record,
+.sale-record,
+.feed-card,
+.cow-card {
+    background: white;
+    color: #333;
+}
+
+.record-header {
+    color: #666;
+}
+
+.record-session {
+    background: #E8F5E9;
+    color: #2E7D32;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+
+/* Dashboard stats */
+.stat-value {
+    color: #4CAF50 !important;
+    font-weight: bold;
+}
+
+.stat-label {
+    color: #666 !important;
+}
+
+/* Activity items */
+.activity-details strong {
+    color: #1a1a1a !important;
+}
+
+.activity-details p {
+    color: #666 !important;
+}
+
+.activity-details small {
+    color: #999 !important;
+}
+
+/* Sales total */
+.sale-total {
+    color: #4CAF50 !important;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* Feed energy */
+.feed-card p {
+    color: #555 !important;
+}
+
+/* Empty states */
+.empty-state {
+    color: #999 !important;
+}
+
+.empty-state h3 {
+    color: #666 !important;
+}
+
+/* Summary cards */
+.summary-card h3 {
+    color: #666 !important;
+    font-size: 0.9em;
+}
+
+.summary-card p {
+    color: #4CAF50 !important;
+    font-weight: bold;
+}
+
+/* Fix dark mode - ensure text is visible */
+@media (prefers-color-scheme: dark) {
+    .cow-details h3,
+    .cow-details p,
+    .milk-record p,
+    .sale-record p,
+    .feed-card p {
+        color: #fff !important;
+    }
+    
+    .stat-value {
+        color: #81C784 !important;
+    }
+    
+    .sale-total {
+        color: #81C784 !important;
+    }
+}
