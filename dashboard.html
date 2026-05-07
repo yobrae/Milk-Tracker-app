@@ -1,28 +1,57 @@
-html
 <!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Farm Owner Dashboard</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <title>Yobrae Farm Dashboard</title>
     <style>
+        :root { --primary: #4CAF50; --bg: #f5f5f5; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
             padding: 15px;
-            background: #f5f5f5;
+            padding-bottom: 80px;
             color: #333;
         }
+        
         .header {
-            background: #4CAF50;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
             color: white;
-            padding: 20px;
-            border-radius: 15px;
+            padding: 25px 20px;
+            border-radius: 20px;
             margin-bottom: 20px;
             text-align: center;
+            box-shadow: 0 4px 15px rgba(76,175,80,0.3);
         }
-        .header h1 {
-            margin: 0;
-            font-size: 1.5em;
+        
+        .header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 0.9em; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
         }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-icon { font-size: 2em; }
+        .stat-value { font-size: 1.3em; font-weight: bold; color: #4CAF50; }
+        .stat-label { font-size: 0.8em; color: #666; margin-top: 5px; }
+        
+        .section-title { font-size: 1.2em; font-weight: bold; margin: 20px 0 10px; color: #333; }
+        
         .update {
             background: white;
             padding: 15px;
@@ -30,11 +59,11 @@ html
             border-radius: 12px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
+        
         .milk_recorded { border-left: 5px solid #4CAF50; }
         .sale_recorded { border-left: 5px solid #2196F3; }
         .feed_added { border-left: 5px solid #FF9800; }
         .cow_added { border-left: 5px solid #9C27B0; }
-        .cow_deleted { border-left: 5px solid #f44336; }
         
         .badge {
             display: inline-block;
@@ -43,94 +72,243 @@ html
             font-size: 0.8em;
             font-weight: bold;
             margin-bottom: 10px;
+            text-transform: uppercase;
         }
+        
         .badge-milk { background: #E8F5E9; color: #4CAF50; }
         .badge-sale { background: #E3F2FD; color: #2196F3; }
         .badge-feed { background: #FFF3E0; color: #FF9800; }
         .badge-cow { background: #F3E5F5; color: #9C27B0; }
         
-        .amount {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #4CAF50;
-        }
-        .time {
-            color: #999;
-            font-size: 0.85em;
-        }
-        .refresh-btn {
+        .amount { font-size: 1.3em; font-weight: bold; color: #4CAF50; }
+        .time { color: #999; font-size: 0.85em; }
+        
+        .refresh-bar {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
+            bottom: 0; left: 0; right: 0;
+            background: white;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
             border: none;
-            padding: 15px 20px;
-            border-radius: 30px;
-            font-size: 1em;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border-radius: 25px;
+            font-size: 0.95em;
+            font-weight: 600;
             cursor: pointer;
         }
-        .empty {
+        
+        .btn:active { transform: scale(0.95); }
+        .btn-refresh { background: #4CAF50; color: white; }
+        .btn-sheet { background: #f0f0f0; color: #333; }
+        
+        .empty { text-align: center; padding: 50px; color: #999; }
+        
+        .loading {
             text-align: center;
             padding: 50px;
-            color: #999;
         }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 3px 0;
+        }
+        
+        .detail-icon { font-size: 1.1em; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🐄  Farm Dashboard</h1>
-        <p>Real-time updates from your farm</p>
+        <h1>🐄 Yobrae Farm</h1>
+        <p>Live Dashboard</p>
     </div>
     
-    <div id="updates">Loading...</div>
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-icon">🥛</div>
+            <div class="stat-value" id="todayMilk">0 L</div>
+            <div class="stat-label">Today's Milk</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value" id="todaySales">KSH 0</div>
+            <div class="stat-label">Today's Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🐄</div>
+            <div class="stat-value" id="totalCows">0</div>
+            <div class="stat-label">Cows</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value" id="totalRecords">0</div>
+            <div class="stat-label">Records</div>
+        </div>
+    </div>
     
-    <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+    <div class="section-title">📋 Recent Activity</div>
+    <div id="updates">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading data...</p>
+        </div>
+    </div>
+    
+    <div id="lastUpdated" style="text-align:center;color:#999;font-size:0.8em;margin:10px 0;"></div>
+    
+    <div class="refresh-bar">
+        <button class="btn btn-sheet" onclick="openSheet()">📊 Open Sheet</button>
+        <button class="btn btn-refresh" onclick="loadData()">🔄 Refresh</button>
+    </div>
     
     <script>
+        // YOUR WORKING APPS SCRIPT URL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyVxvLrsrrbbKT9FZt-zn9-nBVx9XT2sWxLsAZhCSlKmASoZaqsLgUyC0vxithw1u1qAw/exec';
         
+        // YOUR GOOGLE SHEET
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IvThnGlKP6XjWDEoCptuTIYUb5BKKIpy151vCFiCOaY/edit';
+        
         async function loadData() {
+            console.log('Fetching data from:', SCRIPT_URL);
+            
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
+                
+                console.log('Data received:', data);
+                
+                updateStats(data);
                 displayData(data);
+                
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = 
+                    'Last updated: ' + now.toLocaleTimeString('en-KE');
+                    
             } catch (error) {
+                console.error('Error loading data:', error);
                 document.getElementById('updates').innerHTML = 
-                    '<div class="empty">⚠️ Error loading data</div>';
+                    '<div class="empty">⚠️ Unable to load data.<br>Check your connection.</div>';
             }
+        }
+        
+        function updateStats(data) {
+            const today = new Date().toISOString().split('T')[0];
+            let todayMilk = 0, todaySales = 0, cows = new Set();
+            
+            // Skip header row (index 0)
+            for (var i = 1; i < data.length; i++) {
+                var row = data[i];
+                var type = row[1];
+                var cow = row[2];
+                var quantity = row[3];
+                var date = row[4];
+                var amount = row[5];
+                
+                if (date === today) {
+                    if (type === 'milk_recorded') {
+                        todayMilk += parseFloat(quantity) || 0;
+                    }
+                    if (type === 'sale_recorded') {
+                        todaySales += parseFloat(amount) || 0;
+                    }
+                }
+                if (cow && type === 'cow_added') {
+                    cows.add(cow);
+                }
+            }
+            
+            document.getElementById('todayMilk').textContent = todayMilk.toFixed(1) + ' L';
+            document.getElementById('todaySales').textContent = 'KSH ' + todaySales.toLocaleString();
+            document.getElementById('totalCows').textContent = cows.size;
+            document.getElementById('totalRecords').textContent = Math.max(0, data.length - 1);
         }
         
         function displayData(data) {
-            const updates = document.getElementById('updates');
+            var updates = document.getElementById('updates');
             
             if (data.length <= 1) {
-                updates.innerHTML = '<div class="empty">📭 No updates yet. Data will appear when your farm hand records something.</div>';
+                updates.innerHTML = '<div class="empty">📭 No updates yet.<br>Data will appear when your farm hand records something.</div>';
                 return;
             }
             
-            updates.innerHTML = data.slice(1).reverse().map(row => {
-                const [timestamp, type, cow, quantity, date, amount, feed, notes] = row;
-                const badgeClass = type ? type.split('_')[0] : '';
+            var html = '';
+            // Show last 20 records, newest first
+            var records = data.slice(1).reverse().slice(0, 20);
+            
+            for (var i = 0; i < records.length; i++) {
+                var row = records[i];
+                var timestamp = row[0];
+                var type = row[1] || '';
+                var cow = row[2] || '';
+                var quantity = row[3] || '';
+                var date = row[4] || '';
+                var amount = row[5] || '';
+                var feed = row[6] || '';
+                var notes = row[7] || '';
                 
-                return `
-                    <div class="update ${type}">
-                        <span class="badge badge-${badgeClass}">${type ? type.replace(/_/g, ' ') : 'Update'}</span>
-                        ${cow ? `<p><strong>🐄 Cow:</strong> ${cow}</p>` : ''}
-                        ${quantity ? `<p><strong>🥛 Quantity:</strong> ${quantity}L</p>` : ''}
-                        ${date ? `<p><strong>📅 Date:</strong> ${date}</p>` : ''}
-                        ${amount ? `<p class="amount">💰 KSH ${parseFloat(amount).toLocaleString()}</p>` : ''}
-                        ${feed ? `<p><strong>🌾 Feed:</strong> ${feed}</p>` : ''}
-                        ${notes ? `<p><strong>📝 Notes:</strong> ${notes}</p>` : ''}
-                        <p class="time">🕐 ${new Date(timestamp).toLocaleString('en-KE')}</p>
-                    </div>
-                `;
-            }).join('');
+                var badgeClass = type.split('_')[0] || '';
+                var typeLabel = type.replace(/_/g, ' ') || 'Update';
+                
+                html += '<div class="update ' + type + '">';
+                html += '<span class="badge badge-' + badgeClass + '">' + typeLabel + '</span>';
+                
+                if (cow) {
+                    html += '<div class="detail-row"><span class="detail-icon">🐄</span><strong>' + cow + '</strong></div>';
+                }
+                if (quantity) {
+                    html += '<div class="detail-row"><span class="detail-icon">🥛</span>' + quantity + ' Litres</div>';
+                }
+                if (date) {
+                    html += '<div class="detail-row"><span class="detail-icon">📅</span>' + date + '</div>';
+                }
+                if (amount) {
+                    html += '<div class="detail-row"><span class="detail-icon">💰</span><span class="amount">KSH ' + parseFloat(amount).toLocaleString() + '</span></div>';
+                }
+                if (feed) {
+                    html += '<div class="detail-row"><span class="detail-icon">🌾</span>' + feed + '</div>';
+                }
+                if (notes) {
+                    html += '<div class="detail-row"><span class="detail-icon">📝</span>' + notes + '</div>';
+                }
+                
+                html += '<p class="time">🕐 ' + new Date(timestamp).toLocaleString('en-KE') + '</p>';
+                html += '</div>';
+            }
+            
+            updates.innerHTML = html;
         }
         
+        function openSheet() {
+            window.open(SHEET_URL, '_blank');
+        }
+        
+        // Load on start
         loadData();
-        setInterval(loadData, 30000); // Auto-refresh every 30 seconds
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadData, 30000);
     </script>
 </body>
 </html>
